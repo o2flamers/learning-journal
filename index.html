@@ -372,6 +372,17 @@
       font-size: 0.8rem;
       color: var(--text-muted);
     }
+    .gh-grid {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: 1fr 1fr;
+      margin-top: 0.75rem;
+    }
+    @media (max-width: 640px) {
+      .gh-grid { grid-template-columns: 1fr; }
+    }
+    .gh-grid .span-2 { grid-column: 1 / -1; }
+    #ghStatus { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.35rem; }
   </style>
 </head>
 <body>
@@ -385,6 +396,41 @@
         <input type="file" id="importFile" accept=".json" hidden />
       </div>
     </header>
+
+    <div class="panel" style="margin-bottom:1rem">
+      <h2>GitHub storage</h2>
+      <p id="ghStatus">Not connected — add a token to save entries in your repo.</p>
+      <div class="gh-grid">
+        <div class="form-group">
+          <label for="ghOwner">Owner</label>
+          <input id="ghOwner" type="text" value="o2flamers" />
+        </div>
+        <div class="form-group">
+          <label for="ghRepo">Repository</label>
+          <input id="ghRepo" type="text" value="learning-journal" />
+        </div>
+        <div class="form-group">
+          <label for="ghBranch">Branch</label>
+          <input id="ghBranch" type="text" value="main" />
+        </div>
+        <div class="form-group">
+          <label for="ghPath">File path</label>
+          <input id="ghPath" type="text" value="journal.json" />
+        </div>
+        <div class="form-group span-2">
+          <label for="ghToken">Personal access token</label>
+          <input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_… or ghp_…" />
+        </div>
+        <p class="span-2" style="font-size:0.85rem;color:var(--text-muted)">
+          Fine-grained token, this repo only, Contents: Read and write. Token stays in this browser.
+          The repo is public, so journal.json can be read by anyone.
+        </p>
+        <div class="form-actions span-2">
+          <button type="button" class="primary" id="ghPull">Load from GitHub</button>
+          <button type="button" id="ghPush">Save to GitHub</button>
+        </div>
+      </div>
+    </div>
 
     <div class="layout">
       <!-- Left: Calendar + Form -->
@@ -451,7 +497,7 @@
     </div>
 
     <footer>
-      All data stays in your browser. Use Export to keep a backup.
+      Connected saves write to journal.json in your GitHub repo.
     </footer>
   </div>
 
@@ -462,6 +508,107 @@
     currentMonth.setDate(1);
     let selectedDate = new Date().toISOString().slice(0, 10);
     let editingId = null;
+
+    let githubSha = null;
+    let skipGhPush = false;
+    const GH_KEY = "lj-github";
+
+    function ghConfig() {
+      return {
+        owner: document.getElementById("ghOwner").value.trim(),
+        repo: document.getElementById("ghRepo").value.trim(),
+        branch: document.getElementById("ghBranch").value.trim(),
+        path: document.getElementById("ghPath").value.trim(),
+        token: document.getElementById("ghToken").value.trim(),
+      };
+    }
+    function ghReady(cfg) {
+      return cfg.owner && cfg.repo && cfg.branch && cfg.path && cfg.token;
+    }
+    function setGhStatus(msg) {
+      document.getElementById("ghStatus").textContent = msg;
+    }
+    function persistGh() {
+      localStorage.setItem(GH_KEY, JSON.stringify(ghConfig()));
+    }
+    function loadGhForm() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(GH_KEY) || "{}");
+        if (saved.owner) document.getElementById("ghOwner").value = saved.owner;
+        if (saved.repo) document.getElementById("ghRepo").value = saved.repo;
+        if (saved.branch) document.getElementById("ghBranch").value = saved.branch;
+        if (saved.path) document.getElementById("ghPath").value = saved.path;
+        if (saved.token) document.getElementById("ghToken").value = saved.token;
+      } catch (e) { /* ignore */ }
+    }
+    function utf8ToB64(text) {
+      const bytes = new TextEncoder().encode(text);
+      let binary = "";
+      bytes.forEach((b) => { binary += String.fromCharCode(b); });
+      return btoa(binary);
+    }
+    function b64ToUtf8(b64) {
+      const binary = atob(String(b64).replace(/\n/g, ""));
+      const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    }
+    function ghHeaders(token) {
+      return {
+        Accept: "application/vnd.github+json",
+        Authorization: "Bearer " + token,
+        "X-GitHub-Api-Version": "2022-11-28",
+      };
+    }
+    function ghUrl(cfg) {
+      return "https://api.github.com/repos/" + encodeURIComponent(cfg.owner) + "/" +
+        encodeURIComponent(cfg.repo) + "/contents/" + cfg.path.replace(/^\/+/, "");
+    }
+    async function pullGithub() {
+      const cfg = ghConfig();
+      persistGh();
+      if (!ghReady(cfg)) { setGhStatus("Add owner, repo, path, and a token first."); return; }
+      setGhStatus("Loading from GitHub…");
+      const res = await fetch(ghUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch), { headers: ghHeaders(cfg.token) });
+      if (res.status === 404) {
+        githubSha = null;
+        setGhStatus("No journal.json yet. Saving an entry will create it.");
+        return;
+      }
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || "GitHub read failed");
+      const text = b64ToUtf8(body.content);
+      const data = text.trim() ? JSON.parse(text) : [];
+      if (!Array.isArray(data)) throw new Error("journal.json must be a JSON array");
+      skipGhPush = true;
+      entries = data;
+      githubSha = body.sha;
+      localStorage.setItem("learningJournal", JSON.stringify(entries));
+      render();
+      setGhStatus("Loaded " + entries.length + " entries from GitHub.");
+    }
+    async function pushGithub() {
+      const cfg = ghConfig();
+      persistGh();
+      if (!ghReady(cfg)) return;
+      setGhStatus("Saving to GitHub…");
+      const payload = {
+        message: githubSha ? "Update learning journal" : "Create learning journal data",
+        content: utf8ToB64(JSON.stringify(entries, null, 2) + "\n"),
+        branch: cfg.branch,
+      };
+      if (githubSha) payload.sha = githubSha;
+      const res = await fetch(ghUrl(cfg), {
+        method: "PUT",
+        headers: { ...ghHeaders(cfg.token), "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.content || !body.content.sha) {
+        throw new Error(body.message || "GitHub save failed");
+      }
+      githubSha = body.content.sha;
+      setGhStatus("Saved " + entries.length + " entries to " + cfg.path + " on GitHub.");
+    }
 
     // ========== Theme ==========
     function initTheme() {
@@ -481,6 +628,11 @@
     function save() {
       localStorage.setItem("learningJournal", JSON.stringify(entries));
       render();
+      const cfg = ghConfig();
+      if (skipGhPush) { skipGhPush = false; return; }
+      if (ghReady(cfg)) {
+        pushGithub().catch((err) => setGhStatus(err.message || "Could not save to GitHub"));
+      }
     }
 
     // ========== Calendar ==========
@@ -813,11 +965,24 @@
       renderEntries();
     });
 
+    document.getElementById("ghPull").addEventListener("click", () => {
+      pullGithub().catch((err) => setGhStatus(err.message || "Could not load from GitHub"));
+    });
+    document.getElementById("ghPush").addEventListener("click", () => {
+      pushGithub().catch((err) => setGhStatus(err.message || "Could not save to GitHub"));
+    });
+    ["ghOwner","ghRepo","ghBranch","ghPath","ghToken"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", persistGh);
+    });
+
     // Start
     initTheme();
+    loadGhForm();
     document.getElementById("date").value = selectedDate;
     addLinkRow();
     render();
-  </script>
+    if (ghReady(ghConfig())) {
+      pullGithub().catch((err) => setGhStatus(err.message || "Could not load from GitHub"));
+    }
 </body>
 </html>
