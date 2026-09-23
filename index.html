@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Learning Journal</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #e0e0e0;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --danger: #dc2626;
+      --radius: 6px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    [data-theme="dark"] {
+      --bg: #121212;
+      --surface: #1e1e1e;
+      --text: #e5e5e5;
+      --text-muted: #a0a0a0;
+      --border: #333;
+      --accent: #3b82f6;
+      --accent-hover: #60a5fa;
+      --danger: #f87171;
+      --shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    button, .btn {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: 0.4rem 0.75rem;
+      border-radius: var(--radius);
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button:hover, .btn:hover {
+      background: var(--bg);
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    button.primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    button.danger {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    button.danger:hover {
+      background: color-mix(in srgb, var(--danger) 12%, transparent);
+    }
+
+    button.icon {
+      padding: 0.35rem 0.5rem;
+      font-size: 1rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 720px) {
+      .layout {
+        grid-template-columns: 280px 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    /* Calendar */
+    .cal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .cal-header button {
+      padding: 0.25rem 0.5rem;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+
+    .cal-dow {
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 0.3rem 0;
+    }
+
+    .cal-day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .cal-day:hover {
+      background: var(--bg);
+    }
+
+    .cal-day.other {
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    .cal-day.selected {
+      background: var(--accent);
+      color: white;
+    }
+
+    .cal-day.has-entry::after {
+      content: "";
+      position: absolute;
+      bottom: 3px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .cal-day.selected.has-entry::after {
+      background: white;
+    }
+
+    .cal-day.today {
+      font-weight: 700;
+      outline: 1px solid var(--accent);
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 0.9rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    input[type="url"],
+    textarea {
+      width: 100%;
+      font: inherit;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    input:focus, textarea:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .time-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .time-row input {
+      width: 70px;
+    }
+
+    .links-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .link-row {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+    }
+
+    .link-row input {
+      flex: 1;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* Search */
+    .search-bar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .search-bar input {
+      flex: 1;
+      min-width: 160px;
+    }
+
+    /* Entries */
+    .entry {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.9rem;
+      margin-bottom: 0.75rem;
+      background: var(--bg);
+    }
+
+    .entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .entry-date {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .entry-time {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .entry-actions {
+      display: flex;
+      gap: 0.3rem;
+    }
+
+    .entry-learned {
+      margin: 0.4rem 0;
+      white-space: pre-wrap;
+    }
+
+    .entry-links {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .entry-links a {
+      color: var(--accent);
+      word-break: break-all;
+    }
+
+    .entry-notes {
+      margin-top: 0.4rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 2rem 1rem;
+    }
+
+    .stats {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    /* Modal-ish form overlay on small screens */
+    .form-panel {
+      position: sticky;
+      top: 1rem;
+    }
+
+    footer {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Learning Journal</h1>
+      <div class="header-actions">
+        <button id="btnTheme" class="icon" title="Toggle dark mode">🌓</button>
+        <button id="btnExport">Export</button>
+        <button id="btnImport">Import</button>
+        <input type="file" id="importFile" accept=".json" hidden />
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Left: Calendar + Form -->
+      <div>
+        <div class="panel form-panel">
+          <div class="cal-header">
+            <button id="prevMonth">‹</button>
+            <span id="calTitle"></span>
+            <button id="nextMonth">›</button>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+
+        <div class="panel" style="margin-top:1rem">
+          <h2 id="formTitle">New Entry</h2>
+          <form id="entryForm">
+            <input type="hidden" id="entryId" />
+            <div class="form-group">
+              <label for="date">Date</label>
+              <input type="date" id="date" required />
+            </div>
+            <div class="form-group">
+              <label for="learned">What I learned</label>
+              <textarea id="learned" required placeholder="e.g. How to use CSS Grid, React hooks..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Time spent</label>
+              <div class="time-row">
+                <input type="number" id="hours" min="0" max="24" value="0" /> hours
+                <input type="number" id="minutes" min="0" max="59" value="0" /> min
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Website / course links</label>
+              <div class="links-list" id="linksList"></div>
+              <button type="button" id="addLink" style="margin-top:0.4rem;font-size:0.85rem">+ Add link</button>
+            </div>
+            <div class="form-group">
+              <label for="notes">Notes (optional)</label>
+              <textarea id="notes" placeholder="Any extra thoughts..."></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary" id="submitBtn">Save Entry</button>
+              <button type="button" id="cancelEdit" style="display:none">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Right: Entries -->
+      <div>
+        <div class="panel">
+          <h2>Entries</h2>
+          <div class="search-bar">
+            <input type="text" id="search" placeholder="Search what you learned..." />
+            <input type="date" id="filterFrom" title="From date" />
+            <input type="date" id="filterTo" title="To date" />
+            <button id="clearFilters" type="button">Clear</button>
+          </div>
+          <div class="stats" id="stats"></div>
+          <div id="entriesList"></div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      All data stays in your browser. Use Export to keep a backup.
+    </footer>
+  </div>
+
+  <script>
+    // ========== State ==========
+    let entries = JSON.parse(localStorage.getItem("learningJournal") || "[]");
+    let currentMonth = new Date();
+    currentMonth.setDate(1);
+    let selectedDate = new Date().toISOString().slice(0, 10);
+    let editingId = null;
+
+    // ========== Theme ==========
+    function initTheme() {
+      const saved = localStorage.getItem("lj-theme");
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const theme = saved || (prefersDark ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute("data-theme");
+      const next = current === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("lj-theme", next);
+    }
+
+    // ========== Storage ==========
+    function save() {
+      localStorage.setItem("learningJournal", JSON.stringify(entries));
+      render();
+    }
+
+    // ========== Calendar ==========
+    function renderCalendar() {
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+      document.getElementById("calTitle").textContent =
+        currentMonth.toLocaleString("default", { month: "long", year: "numeric" });
+
+      const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const daysInPrev = new Date(year, month, 0).getDate();
+
+      const grid = document.getElementById("calGrid");
+      grid.innerHTML = "";
+
+      // Day headers
+      ["Su","Mo","Tu","We","Th","Fr","Sa"].forEach(d => {
+        const el = document.createElement("div");
+        el.className = "cal-dow";
+        el.textContent = d;
+        grid.appendChild(el);
+      });
+
+      // Previous month padding
+      for (let i = firstDay - 1; i >= 0; i--) {
+        const day = daysInPrev - i;
+        const el = document.createElement("div");
+        el.className = "cal-day other";
+        el.textContent = day;
+        grid.appendChild(el);
+      }
+
+      // Current month
+      const todayStr = new Date().toISOString().slice(0, 10);
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        const el = document.createElement("div");
+        el.className = "cal-day";
+        if (dateStr === selectedDate) el.classList.add("selected");
+        if (dateStr === todayStr) el.classList.add("today");
+        if (entries.some(e => e.date === dateStr)) el.classList.add("has-entry");
+        el.textContent = d;
+        el.addEventListener("click", () => {
+          selectedDate = dateStr;
+          document.getElementById("date").value = dateStr;
+          if (!editingId) {
+            // keep form ready for new entry on this date
+          }
+          renderCalendar();
+          renderEntries();
+        });
+        grid.appendChild(el);
+      }
+
+      // Next month padding to fill grid
+      const totalCells = firstDay + daysInMonth;
+      const remaining = (7 - (totalCells % 7)) % 7;
+      for (let i = 1; i <= remaining; i++) {
+        const el = document.createElement("div");
+        el.className = "cal-day other";
+        el.textContent = i;
+        grid.appendChild(el);
+      }
+    }
+
+    // ========== Links ==========
+    function addLinkRow(url = "", title = "") {
+      const list = document.getElementById("linksList");
+      const row = document.createElement("div");
+      row.className = "link-row";
+      row.innerHTML = `
+        <input type="url" placeholder="https://..." value="${escapeAttr(url)}" class="link-url" />
+        <input type="text" placeholder="Title (optional)" value="${escapeAttr(title)}" class="link-title" />
+        <button type="button" class="icon remove-link">×</button>
+      `;
+      row.querySelector(".remove-link").addEventListener("click", () => row.remove());
+      list.appendChild(row);
+    }
+
+    function getLinksFromForm() {
+      const rows = document.querySelectorAll("#linksList .link-row");
+      const links = [];
+      rows.forEach(row => {
+        const url = row.querySelector(".link-url").value.trim();
+        const title = row.querySelector(".link-title").value.trim();
+        if (url) links.push({ url, title });
+      });
+      return links;
+    }
+
+    // ========== Form ==========
+    function resetForm() {
+      editingId = null;
+      document.getElementById("entryId").value = "";
+      document.getElementById("date").value = selectedDate;
+      document.getElementById("learned").value = "";
+      document.getElementById("hours").value = 0;
+      document.getElementById("minutes").value = 0;
+      document.getElementById("notes").value = "";
+      document.getElementById("linksList").innerHTML = "";
+      addLinkRow();
+      document.getElementById("formTitle").textContent = "New Entry";
+      document.getElementById("submitBtn").textContent = "Save Entry";
+      document.getElementById("cancelEdit").style.display = "none";
+    }
+
+    function fillForm(entry) {
+      editingId = entry.id;
+      document.getElementById("entryId").value = entry.id;
+      document.getElementById("date").value = entry.date;
+      document.getElementById("learned").value = entry.learned;
+      document.getElementById("hours").value = entry.hours || 0;
+      document.getElementById("minutes").value = entry.minutes || 0;
+      document.getElementById("notes").value = entry.notes || "";
+      document.getElementById("linksList").innerHTML = "";
+      if (entry.links && entry.links.length) {
+        entry.links.forEach(l => addLinkRow(l.url, l.title));
+      } else {
+        addLinkRow();
+      }
+      document.getElementById("formTitle").textContent = "Edit Entry";
+      document.getElementById("submitBtn").textContent = "Update Entry";
+      document.getElementById("cancelEdit").style.display = "inline-block";
+      // scroll form into view on mobile
+      document.querySelector(".form-panel").scrollIntoView({ behavior: "smooth" });
+    }
+
+    // ========== Entries list ==========
+    function getFilteredEntries() {
+      const q = document.getElementById("search").value.toLowerCase().trim();
+      const from = document.getElementById("filterFrom").value;
+      const to = document.getElementById("filterTo").value;
+
+      return entries
+        .filter(e => {
+          if (from && e.date < from) return false;
+          if (to && e.date > to) return false;
+          if (q) {
+            const hay = (e.learned + " " + (e.notes || "") + " " +
+              (e.links || []).map(l => l.url + " " + l.title).join(" ")).toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+    }
+
+    function formatTime(h, m) {
+      const parts = [];
+      if (h > 0) parts.push(h + "h");
+      if (m > 0) parts.push(m + "m");
+      return parts.length ? parts.join(" ") : "0m";
+    }
+
+    function renderEntries() {
+      const list = document.getElementById("entriesList");
+      const filtered = getFilteredEntries();
+      const totalMinutes = filtered.reduce((sum, e) => sum + (e.hours || 0) * 60 + (e.minutes || 0), 0);
+      const totalH = Math.floor(totalMinutes / 60);
+      const totalM = totalMinutes % 60;
+
+      document.getElementById("stats").textContent =
+        `${filtered.length} entr${filtered.length === 1 ? "y" : "ies"} · ${formatTime(totalH, totalM)} total`;
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="empty">No entries yet.<br>Add your first learning session on the left.</div>`;
+        return;
+      }
+
+      list.innerHTML = filtered.map(e => `
+        <div class="entry" data-id="${e.id}">
+          <div class="entry-header">
+            <div>
+              <div class="entry-date">${formatDate(e.date)}</div>
+              <div class="entry-time">${formatTime(e.hours || 0, e.minutes || 0)}</div>
+            </div>
+            <div class="entry-actions">
+              <button class="icon edit-btn" title="Edit">✎</button>
+              <button class="icon danger delete-btn" title="Delete">×</button>
+            </div>
+          </div>
+          <div class="entry-learned">${escapeHtml(e.learned)}</div>
+          ${e.links && e.links.length ? `
+            <div class="entry-links">
+              ${e.links.map(l => `<div><a href="${escapeAttr(l.url)}" target="_blank" rel="noopener">${escapeHtml(l.title || l.url)}</a></div>`).join("")}
+            </div>
+          ` : ""}
+          ${e.notes ? `<div class="entry-notes">${escapeHtml(e.notes)}</div>` : ""}
+        </div>
+      `).join("");
+
+      // Attach listeners
+      list.querySelectorAll(".edit-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.closest(".entry").dataset.id;
+          const entry = entries.find(e => e.id === id);
+          if (entry) fillForm(entry);
+        });
+      });
+      list.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.closest(".entry").dataset.id;
+          if (confirm("Delete this entry?")) {
+            entries = entries.filter(e => e.id !== id);
+            save();
+          }
+        });
+      });
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso + "T12:00:00");
+      return d.toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" });
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+    function escapeAttr(str) {
+      return escapeHtml(str).replace(/'/g, "&#39;");
+    }
+
+    // ========== Render all ==========
+    function render() {
+      renderCalendar();
+      renderEntries();
+    }
+
+    // ========== Export / Import ==========
+    function exportData() {
+      const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `learning-journal-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importData(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!Array.isArray(data)) throw new Error("Invalid format");
+          // Basic validation
+          const valid = data.every(item => item.date && item.learned !== undefined);
+          if (!valid) throw new Error("Missing required fields");
+          if (confirm(`Import ${data.length} entries? This will replace your current data.`)) {
+            entries = data.map(item => ({
+              id: item.id || crypto.randomUUID(),
+              date: item.date,
+              learned: item.learned,
+              hours: Number(item.hours) || 0,
+              minutes: Number(item.minutes) || 0,
+              links: Array.isArray(item.links) ? item.links : [],
+              notes: item.notes || "",
+              createdAt: item.createdAt || Date.now()
+            }));
+            save();
+            alert("Import successful!");
+          }
+        } catch (err) {
+          alert("Import failed: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ========== Init ==========
+    document.getElementById("btnTheme").addEventListener("click", toggleTheme);
+    document.getElementById("btnExport").addEventListener("click", exportData);
+    document.getElementById("btnImport").addEventListener("click", () => document.getElementById("importFile").click());
+    document.getElementById("importFile").addEventListener("change", (e) => {
+      if (e.target.files[0]) importData(e.target.files[0]);
+      e.target.value = "";
+    });
+
+    document.getElementById("prevMonth").addEventListener("click", () => {
+      currentMonth.setMonth(currentMonth.getMonth() - 1);
+      renderCalendar();
+    });
+    document.getElementById("nextMonth").addEventListener("click", () => {
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
+      renderCalendar();
+    });
+
+    document.getElementById("addLink").addEventListener("click", () => addLinkRow());
+    document.getElementById("cancelEdit").addEventListener("click", resetForm);
+
+    document.getElementById("entryForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const entry = {
+        id: editingId || crypto.randomUUID(),
+        date: document.getElementById("date").value,
+        learned: document.getElementById("learned").value.trim(),
+        hours: Number(document.getElementById("hours").value) || 0,
+        minutes: Number(document.getElementById("minutes").value) || 0,
+        links: getLinksFromForm(),
+        notes: document.getElementById("notes").value.trim(),
+        createdAt: editingId
+          ? (entries.find(x => x.id === editingId)?.createdAt || Date.now())
+          : Date.now()
+      };
+
+      if (editingId) {
+        const idx = entries.findIndex(x => x.id === editingId);
+        if (idx !== -1) entries[idx] = entry;
+      } else {
+        entries.push(entry);
+      }
+      save();
+      resetForm();
+      selectedDate = entry.date;
+      renderCalendar();
+    });
+
+    document.getElementById("search").addEventListener("input", renderEntries);
+    document.getElementById("filterFrom").addEventListener("change", renderEntries);
+    document.getElementById("filterTo").addEventListener("change", renderEntries);
+    document.getElementById("clearFilters").addEventListener("click", () => {
+      document.getElementById("search").value = "";
+      document.getElementById("filterFrom").value = "";
+      document.getElementById("filterTo").value = "";
+      renderEntries();
+    });
+
+    // Start
+    initTheme();
+    document.getElementById("date").value = selectedDate;
+    addLinkRow();
+    render();
+  </script>
+</body>
+</html>
